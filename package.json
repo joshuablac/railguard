@@ -75,7 +75,7 @@
     "type": "git",
     "url": "git+https://github.com/joshuablac/railguard.git"
   },
-  "homepage": "https://joshuablac.github.io/railguard/",
+  "homepage": "https://github.com/joshuablac/railguard#readme",
   "bugs": {
     "url": "https://github.com/joshuablac/railguard/issues"
   }

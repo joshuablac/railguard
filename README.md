@@ -2,7 +2,7 @@
 
 **Guardrails for Node.js apps, whether a person or an AI wrote the code.**
 
-[Website](https://joshuablac.github.io/railguard/) · [npm](https://www.npmjs.com/package/railguard) · [Changelog](./CHANGELOG.md)
+[npm](https://www.npmjs.com/package/railguard) · [Changelog](./CHANGELOG.md) · [For AI assistants: llms.txt](./llms.txt)
 
 One install, three guards, zero dependencies:
 
