@@ -1,0 +1,100 @@
+# railguard
+
+> Zero-dependency guardrails for Node.js (>= 20.19) apps: a typed .env guard with a secret-leak scanner, an Express error/validation toolkit that understands Mongoose/MongoDB/JWT/multer errors, and an edge-case prober that finds inputs that crash functions. ESM and CommonJS (`require`) both work. Types included.
+
+Entry points: `railguard` (everything), `railguard/env`, `railguard/express`, `railguard/edge`, `railguard/secrets`.
+
+## Rules for AI assistants using railguard
+
+- Read config only from the object returned by `guard(schema)`. Do not read `process.env.X` elsewhere. Never hard-code secrets.
+- New env var → add it to `env.schema.js` AND `.env.example` (`npx railguard example` prints one).
+- In Express, validate with `validate({ params, query, body })`, throw `HttpError.*` for expected failures, mount `notFound()` then `errorHandler()` last. Do not write try/catch only to send 500s.
+- After writing a utility function, run `npx railguard probe <file> <export>` and fix every ✗. Or add `assertEdges(fn, { args })` to a test.
+- Before committing, `npx railguard scan` must exit 0.
+
+## Schema fields (shared by env and validate)
+
+```js
+const { t } = require('railguard')
+t.string({ min, max, pattern, trim })   t.number({ min, max, int })   t.int({ min, max })   t.port()
+t.boolean()   t.enum(['a', 'b'])   t.url({ protocols: ['https'] })   t.email({ normalize })   t.json()
+t.array(field, { min, max })   t.object(shape, { unknown: 'strip' | 'reject' | 'keep' })   t.any()
+// modifiers: .optional()  .default(value | () => value)  .secret()  .describe('text')
+```
+
+- Missing = `undefined` or `null` (and, for env, empty/whitespace strings). Required fields report "is required".
+- Coercion happens for env, query and params ("3000" → 3000, "false" → false, "a,b" → ["a","b"]). Body values are not coerced.
+- `t.object` drops unknown keys by default (mass-assignment protection) and never copies `__proto__`/`constructor`/`prototype`.
+- Issue messages never include the received value.
+- `check(schemaOrShape, input, { coerce })` → `{ ok: true, value } | { ok: false, issues: [{ path, message }] }`.
+
+## Env
+
+```js
+const { guard } = require('railguard')
+const env = guard({
+  PORT: t.port().default(5000),
+  MONGO_DB: t.url(),
+  JWT_SECRET: t.string({ min: 32 }).secret(),
+})
+```
+
+- `guard(schema, { source?, file?, onError? })`. Default source is `process.env`; it loads `.env` underneath (real env wins) and copies loaded keys into `process.env`. Pass `file: false` to skip the file.
+- Throws `EnvError` (has `.issues`) listing all problems. `onError(err)` returns a value instead of throwing.
+- Result is frozen; reading a key not in the schema throws `ReferenceError`; `util.inspect`/`console.log` prints secrets as `[secret]` (keys named *SECRET*, *PASSWORD*, *_PASS, *TOKEN*, *API_KEY*, *PRIVATE*, URLs with credentials, or `.secret()`).
+- `envExample(schema)` → text for `.env.example` (no secret defaults).
+
+## Express
+
+```js
+const { validate, asyncHandler, errorHandler, notFound, ok, created, HttpError, t } = require('railguard')
+app.post('/users', validate({ body: { email: t.email({ normalize: true }) } }), asyncHandler(async (req, res) => {
+  created(res, await User.create(req.body))
+}))
+app.use(notFound())
+app.use(errorHandler({ log?, production?, map? }))
+```
+
+- Success: `{ success: true, data, meta? }` via `ok(res, data, { status, meta })` / `created(res, data)`.
+- Error: `{ success: false, error: { code, message, details?, stack? } }`. 5xx messages and `stack` are sent only when NODE_ENV is `development` or `test` (unset NODE_ENV counts as production).
+- `HttpError(status, message, { code, details, expose })`; statics `badRequest, unauthorized, forbidden, notFound, conflict, unprocessable, tooManyRequests, internal`.
+- Mapping by name/code: Mongoose `ValidationError` → 400 VALIDATION_ERROR (details per field); `CastError` → 400 INVALID_ID/INVALID_VALUE; `code 11000` → 409 DUPLICATE (field names only); `TokenExpiredError` → 401 TOKEN_EXPIRED; `JsonWebTokenError` → 401 INVALID_TOKEN; body-parser `entity.parse.failed` → 400 INVALID_JSON, `entity.too.large` → 413; `MulterError` → 400 (LIMIT_FILE_SIZE → 413); errors with `status`/`statusCode` 4xx keep it; everything else → 500 (generic message unless NODE_ENV is development/test).
+- A missing body is validated as `{}`, so each required field is reported. For user-supplied URLs use `t.url({ protocols: ['https'] })`.
+- `validate()` errors → 400 VALIDATION_ERROR with `details: [{ path: 'body.email', message }]`. On success `req.body/query/params` are replaced with parsed values (own properties, so it works with Express 5's `req.query` getter) and also set on `req.valid`.
+- `asyncHandler(fn)` forwards rejections to `next` (needed on Express 4 only). Keeps 4-argument error middleware as 4 arguments.
+- `errorHandler()` has exactly 4 parameters; if `res.headersSent` it calls `next(err)`.
+
+## Edge-case prober
+
+```js
+const { probe, assertEdges, edge } = require('railguard/edge')
+const report = await probe(fn, { args: ['string', 'number'] })   // or edge.string({ sample: 'a@b.co', extra: [...] })
+report.ok; report.problems; String(report)
+await assertEdges(fn, { args: ['array'], allow: (err) => err instanceof RangeError, invariant: (out) => out >= 0 })
+```
+
+- Arg types: `string, number (int/integer), boolean, array, object, date, any`, or `edge.custom(sample, [cases])`.
+- Varies one argument at a time; the others use their `sample`. Also calls with no arguments, and tries `null`, `undefined` and wrong types unless `wrongTypes: false`.
+- If the samples themselves fail, `report.baselineError` explains; pass `{ sample }`.
+- Failure kinds: `crash` (V8 errors such as "Cannot read properties of undefined", "Invalid time value", "Maximum call stack size exceeded"), `throws` (any throw when `strict: true`), `nan`, `invalid-date`, `output` (result string contains "undefined", "NaN" or "[object Object]" not present in the input), `mutation` (argument changed; disable with `mutation: false`), `pollution` (Object.prototype modified; auto-cleaned), `timeout` (async, `timeout` ms, default 2000), `invariant`.
+- Errors the function throws deliberately (non-V8 messages) are `rejected`, not failures.
+- Cannot interrupt synchronous infinite loops. Imports and executes the target code.
+
+## Secrets
+
+- `scanText(text, { file })`, `scanFiles({ cwd, paths })`, `scanStaged({ cwd })` → findings `{ rule, title, file, line, column, preview }` with the secret masked as `********` (known public prefixes like `AKIA`, `ghp_` kept).
+- Rules: private-key, database-url, aws-access-key, github-token, stripe-key, ai-api-key, google-api-key, slack-token, sendgrid-key, jwt, app-password, hardcoded-secret.
+- `hardcoded-secret`: in config files (.env, YAML, INI, TOML) any non-placeholder value of a secret-named key; in code only quoted values of 8+ chars containing a letter and a digit with some variety; never in Markdown/text files (the specific rules still apply there).
+- Skips placeholders (`<password>`, `your-...`, `changeme`, `process.env.X`), node_modules, lockfiles, binaries, files > 1 MB, and git-ignored files. `railguard-ignore` on a line skips it.
+- `checkEnvFiles(cwd)` flags `.env*` files that are tracked by git or not ignored. `installHook(cwd)` writes a pre-commit hook (respects `core.hooksPath`, never overwrites).
+
+## CLI
+
+```
+npx railguard init                         # env.schema.js from .env.example (CJS or ESM by package.json "type")
+npx railguard check [--schema f] [--env f] # exit 1 on env problems or un-ignored/tracked .env
+npx railguard scan [paths] [--staged]      # exit 1 on secrets
+npx railguard hook                         # install pre-commit hook
+npx railguard example                      # print .env.example from the schema
+npx railguard probe <file> [export] [--args string,number] [--strict] [--timeout ms] [--no-mutation]
+```

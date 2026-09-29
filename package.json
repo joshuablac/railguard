@@ -1,0 +1,82 @@
+{
+  "name": "railguard",
+  "version": "0.1.0",
+  "description": "Guardrails for Node.js apps, whether a person or an AI wrote the code: a typed .env guard with a secret-leak scanner, a MERN-aware Express error toolkit, and an edge-case prober that finds the inputs that crash your functions. Zero dependencies.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./env": {
+      "types": "./types/env.d.ts",
+      "default": "./src/env.js"
+    },
+    "./express": {
+      "types": "./types/express.d.ts",
+      "default": "./src/express.js"
+    },
+    "./edge": {
+      "types": "./types/edge.d.ts",
+      "default": "./src/edge.js"
+    },
+    "./secrets": {
+      "types": "./types/secrets.d.ts",
+      "default": "./src/secrets.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.js",
+  "types": "./types/index.d.ts",
+  "bin": {
+    "railguard": "bin/railguard.js"
+  },
+  "files": [
+    "src",
+    "bin",
+    "types",
+    "llms.txt",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:types": "npx -y -p typescript@5 tsc -p typecheck/tsconfig.json",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "env",
+    "dotenv",
+    "environment-variables",
+    "validation",
+    "secrets",
+    "secret-scanning",
+    "pre-commit",
+    "express",
+    "error-handler",
+    "async-handler",
+    "mongoose",
+    "mern",
+    "edge-cases",
+    "fuzzing",
+    "testing",
+    "ai",
+    "llm",
+    "zero-dependency"
+  ],
+  "author": "Joshua (https://github.com/joshuablac)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joshuablac/railguard.git"
+  },
+  "homepage": "https://joshuablac.github.io/railguard/",
+  "bugs": {
+    "url": "https://github.com/joshuablac/railguard/issues"
+  }
+}

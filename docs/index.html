@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="railguard: one zero-dependency npm package that stops bad .env files, leaked secrets, messy Express errors and edge-case crashes in Node.js apps.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="railguard: guardrails for Node.js apps">
+<meta property="og:description" content="Env + secret guard, Express error toolkit and an edge-case prober in one zero-dependency npm package. Built for code written by people and AI.">
+<meta property="og:url" content="https://joshuablac.github.io/railguard/">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#F4C20D">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2317191B'/%3E%3Cpath d='M0 22 L10 32 H18 L0 14Z M0 6 L26 32 H32 V30 L2 0 H0Z M10 0 L32 22 V14 L18 0Z' fill='%23F4C20D'/%3E%3C/svg%3E">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>railguard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;700&family=Atkinson+Hyperlegible+Next:wght@400;700&family=Big+Shoulders+Display:wght@700;900&display=swap">
+<style>
+  :root {
+    --ground: #F1F2EF;
+    --surface: #FFFFFF;
+    --ink: #17191B;
+    --muted: #5B6166;
+    --rule: #D5D8D3;
+    --caution: #F4C20D;
+    --caution-ink: #17191B;
+    --stripe-dark: #17191B;
+    --signal-red: #C8322A;
+    --signal-green: #1D7F47;
+    --signal-amber: #B7791F;
+    --term-bg: #1A1D20;
+    --term-fg: #E6E8E3;
+    --term-dim: #8C949A;
+    --term-red: #FF7466;
+    --term-green: #5BD08F;
+    --term-yellow: #F4C20D;
+    --code-bg: #E7E9E4;
+    --focus: #1D5FD1;
+    --display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+    --body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    --mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #121416;
+      --surface: #1A1D20;
+      --ink: #ECEDE8;
+      --muted: #A0A7AC;
+      --rule: #2E3337;
+      --signal-red: #FF7466;
+      --signal-green: #5BD08F;
+      --signal-amber: #E8B04B;
+      --term-bg: #0C0E0F;
+      --code-bg: #1F2326;
+      --focus: #7FB0FF;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #121416;
+    --surface: #1A1D20;
+    --ink: #ECEDE8;
+    --muted: #A0A7AC;
+    --rule: #2E3337;
+    --signal-red: #FF7466;
+    --signal-green: #5BD08F;
+    --signal-amber: #E8B04B;
+    --term-bg: #0C0E0F;
+    --code-bg: #1F2326;
+    --focus: #7FB0FF;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.6;
+    padding-inline: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin-inline: auto; }
+  a { color: inherit; text-underline-offset: 3px; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 2px; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 900; line-height: 0.95; text-wrap: balance; margin: 0; letter-spacing: 0.005em; }
+  h2 { font-size: clamp(2.2rem, 5vw, 3.4rem); text-transform: uppercase; }
+  h3 { font-size: 1.75rem; text-transform: uppercase; }
+  p { margin: 0; max-width: 65ch; }
+  code, pre, kbd { font-family: var(--mono); }
+  .eyebrow { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+  /* ---------- top bar ---------- */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-block: 18px; }
+  .wordmark { font-family: var(--display); font-weight: 900; font-size: 1.6rem; text-transform: lowercase; text-decoration: none; }
+  .toplinks { display: flex; gap: 20px; font-size: 0.95rem; flex-wrap: wrap; }
+  .toplinks a { text-decoration: none; border-bottom: 2px solid transparent; }
+  .toplinks a:hover { border-bottom-color: var(--caution); }
+
+  /* ---------- hero ---------- */
+  .hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 48px; align-items: end; padding-block: 40px 36px; }
+  .hero h1 { font-size: clamp(4.6rem, 15vw, 11.5rem); text-transform: lowercase; letter-spacing: -0.01em; line-height: 0.82; }
+  .hero .lede { font-size: clamp(1.2rem, 2.2vw, 1.45rem); line-height: 1.4; margin-top: 22px; max-width: 30ch; }
+  .facts { list-style: none; padding: 0; margin: 0; display: grid; gap: 0; border-top: 2px solid var(--ink); }
+  .facts li { display: flex; justify-content: space-between; gap: 16px; padding-block: 11px; border-bottom: 1px solid var(--rule); font-size: 0.98rem; }
+  .facts li span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .install { margin-top: 22px; display: flex; align-items: stretch; border: 2px solid var(--ink); background: var(--surface); max-width: 100%; }
+  .install code { flex: 1; padding: 14px 16px; font-size: 1rem; white-space: nowrap; overflow-x: auto; }
+  .install code::before { content: "$ "; color: var(--muted); }
+  .copy {
+    font: 700 0.85rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+    background: var(--caution); color: var(--caution-ink); border: 0; border-left: 2px solid var(--ink);
+    padding: 0 18px; cursor: pointer; min-width: 92px;
+  }
+  .copy:hover { filter: brightness(1.05); }
+  .rail {
+    height: 26px; margin-block: 6px 0;
+    background: repeating-linear-gradient(-45deg, var(--caution) 0 22px, var(--stripe-dark) 22px 44px);
+    border-block: 3px solid var(--stripe-dark);
+  }
+
+  /* ---------- line map ---------- */
+  section { padding-block: 72px 8px; }
+  .section-head { display: grid; gap: 14px; margin-bottom: 36px; }
+  .section-head p { color: var(--muted); font-size: 1.08rem; }
+  .line { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: relative; }
+  .line::before { content: ""; position: absolute; left: 0; right: 0; top: 17px; height: 6px; background: var(--ink); }
+  .stop { position: relative; padding-right: 18px; }
+  .stop .dot { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); border: 6px solid var(--ink); position: relative; z-index: 1; display: grid; place-items: center; }
+  .stop .dot::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--signal-green); }
+  .stop .when { font-family: var(--display); font-weight: 900; font-size: 1.9rem; text-transform: uppercase; margin-top: 16px; line-height: 1; }
+  .stop .cmd { display: inline-block; margin-top: 8px; font-family: var(--mono); font-size: 0.86rem; background: var(--code-bg); padding: 2px 7px; }
+  .stop p { margin-top: 10px; font-size: 0.97rem; color: var(--muted); }
+
+  /* ---------- terminal ---------- */
+  .console { border: 2px solid var(--ink); background: var(--term-bg); color: var(--term-fg); }
+  .tabs { display: flex; flex-wrap: wrap; border-bottom: 2px solid var(--ink); background: var(--surface); }
+  .tab {
+    font: 700 0.9rem var(--mono); letter-spacing: 0.04em; padding: 13px 18px; cursor: pointer;
+    background: transparent; color: var(--ink); border: 0; border-right: 1px solid var(--rule); position: relative;
+  }
+  .tab .lamp { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--rule); margin-right: 9px; vertical-align: 1px; }
+  .tab[aria-selected="true"] { background: var(--caution); color: var(--caution-ink); }
+  .tab[aria-selected="true"] .lamp { background: var(--signal-red); box-shadow: 0 0 0 2px var(--caution-ink); }
+  .panel { padding: 22px 22px 26px; overflow-x: auto; }
+  .panel pre { margin: 0; font-size: 0.9rem; line-height: 1.55; white-space: pre; }
+  .panel .src { color: var(--term-dim); border-left: 3px solid var(--term-yellow); padding-left: 14px; margin-bottom: 20px; }
+  .t-cmd { color: var(--term-fg); font-weight: 700; }
+  .t-dim { color: var(--term-dim); }
+  .t-x { color: var(--term-red); font-weight: 700; }
+  .t-ok { color: var(--term-green); font-weight: 700; }
+  .t-y { color: var(--term-yellow); }
+  .caption { font-size: 0.92rem; color: var(--muted); margin-top: 12px; }
+
+  /* ---------- guards ---------- */
+  .guard { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 40px; padding-block: 44px; border-top: 2px solid var(--ink); }
+  .guard:last-of-type { border-bottom: 2px solid var(--ink); }
+  .guard .copytext { display: grid; gap: 16px; align-content: start; }
+  .guard ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+  .guard li { padding-left: 26px; position: relative; max-width: 60ch; }
+  .guard li::before { content: "✗"; position: absolute; left: 2px; color: var(--signal-red); font-weight: 700; }
+  .code { background: var(--code-bg); border: 1px solid var(--rule); padding: 18px 20px; overflow-x: auto; }
+  .code pre { margin: 0; font-size: 0.88rem; line-height: 1.6; white-space: pre; }
+  .c-com { color: var(--muted); }
+  .c-str { color: var(--signal-green); }
+  .c-key { font-weight: 700; }
+  .map { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 16px; }
+  .map th, .map td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .map th { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  .map td:last-child { font-family: var(--mono); white-space: nowrap; }
+  .table-scroll { overflow-x: auto; }
+
+  /* ---------- AI section ---------- */
+  .ai { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 40px; align-items: start; }
+  .ai .copytext { display: grid; gap: 16px; }
+  .rules { background: var(--surface); border: 2px solid var(--ink); }
+  .rules-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 10px 10px 16px; border-bottom: 2px solid var(--ink); }
+  .rules-head span { font-family: var(--mono); font-size: 0.82rem; color: var(--muted); }
+  .rules-head .copy { border: 2px solid var(--ink); padding: 8px 14px; }
+  .rules pre { margin: 0; padding: 16px; font-size: 0.84rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+  /* ---------- limits ---------- */
+  .limits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+  .limit { border-top: 6px solid var(--signal-amber); padding-top: 14px; display: grid; gap: 8px; align-content: start; }
+  .limit h3 { font-size: 1.45rem; }
+  .limit p { color: var(--muted); font-size: 0.98rem; }
+
+  /* ---------- footer ---------- */
+  .end { margin-top: 80px; }
+  .end-inner { display: flex; justify-content: space-between; align-items: end; gap: 28px; flex-wrap: wrap; padding-block: 36px 44px; }
+  .end h2 { font-size: clamp(2.6rem, 7vw, 5rem); text-transform: lowercase; }
+  .end .links { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-block; font: 700 0.95rem var(--mono); text-decoration: none; padding: 12px 18px; border: 2px solid var(--ink); background: var(--surface); }
+  .btn.primary { background: var(--caution); color: var(--caution-ink); }
+  .btn:hover { transform: translateY(-1px); }
+  .fine { font-size: 0.88rem; color: var(--muted); padding-bottom: 36px; }
+
+  @media (max-width: 900px) {
+    .hero, .guard, .ai { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    .limits { grid-template-columns: minmax(0, 1fr); }
+    .line { grid-template-columns: minmax(0, 1fr); gap: 26px; padding-left: 0; }
+    .line::before { left: 17px; right: auto; top: 0; bottom: 0; width: 6px; height: auto; }
+    .stop { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 18px; padding-right: 0; }
+    .stop .dot { grid-row: 1 / span 3; }
+    .stop .when { margin-top: 4px; }
+  }
+  @media (max-width: 480px) {
+    body { font-size: 16px; padding-inline: 16px; }
+    .tab { padding: 11px 12px; font-size: 0.82rem; }
+    .panel { padding: 16px; }
+    .panel pre { font-size: 0.8rem; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .tab[aria-selected="true"] .lamp { animation: blink 1.6s steps(2, jump-none) infinite; }
+    @keyframes blink { 50% { background: var(--caution-ink); } }
+    .btn { transition: transform 120ms ease; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="topbar">
+    <a class="wordmark" href="#top">railguard</a>
+    <nav class="toplinks" aria-label="Links">
+      <a href="#demo">Demo</a>
+      <a href="#guards">What it checks</a>
+      <a href="#ai">With AI tools</a>
+      <a href="https://github.com/joshuablac/railguard">GitHub</a>
+      <a href="https://www.npmjs.com/package/railguard">npm</a>
+    </nav>
+  </header>
+
+  <div class="hero" id="top">
+    <div>
+      <p class="eyebrow">An npm package for Node.js</p>
+      <h1>railguard</h1>
+      <p class="lede">Guardrails for Node.js apps, whether a person or an AI wrote the code.</p>
+      <div class="install">
+        <code id="install-cmd">npm install railguard</code>
+        <button class="copy" type="button" data-copy="install-cmd">Copy</button>
+      </div>
+    </div>
+    <ul class="facts" aria-label="Package facts">
+      <li><span>Runtime dependencies</span><span>0</span></li>
+      <li><span>Edge cases tried per string argument</span><span>35</span></li>
+      <li><span>Secret detectors</span><span>12</span></li>
+      <li><span>Works with</span><span>Express 4 &amp; 5</span></li>
+      <li><span>Import style</span><span>ESM + require()</span></li>
+      <li><span>Node.js</span><span>≥ 20.19</span></li>
+      <li><span>License</span><span>MIT</span></li>
+    </ul>
+  </div>
+  <div class="rail" role="presentation"></div>
+
+  <section aria-labelledby="line-title">
+    <div class="section-head">
+      <p class="eyebrow">Along the line</p>
+      <h2 id="line-title">Five places it catches mistakes</h2>
+      <p>Code passes these checkpoints in this order, from the function you just wrote to the request a user sends in production. railguard puts a guard at each one.</p>
+    </div>
+    <ol class="line">
+      <li class="stop">
+        <span class="dot" aria-hidden="true"></span>
+        <div class="when">Write</div>
+        <code class="cmd">railguard probe</code>
+        <p>Feeds null, empty strings, NaN, emoji and invalid dates to your functions and explains every crash.</p>
+      </li>
+      <li class="stop">
+        <span class="dot" aria-hidden="true"></span>
+        <div class="when">Test</div>
+        <code class="cmd">assertEdges(fn)</code>
+        <p>The same checks inside node:test, Jest or Vitest, so a fixed bug stays fixed.</p>
+      </li>
+      <li class="stop">
+        <span class="dot" aria-hidden="true"></span>
+        <div class="when">Commit</div>
+        <code class="cmd">railguard hook</code>
+        <p>Blocks commits that contain database passwords, API keys or .env files.</p>
+      </li>
+      <li class="stop">
+        <span class="dot" aria-hidden="true"></span>
+        <div class="when">Boot</div>
+        <code class="cmd">guard(schema)</code>
+        <p>The app refuses to start with a missing or mistyped .env, and lists every problem at once.</p>
+      </li>
+      <li class="stop">
+        <span class="dot" aria-hidden="true"></span>
+        <div class="when">Request</div>
+        <code class="cmd">errorHandler()</code>
+        <p>Every error leaves as the same JSON shape. No stack traces in production.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="demo" aria-labelledby="demo-title">
+    <div class="section-head">
+      <p class="eyebrow">Real output</p>
+      <h2 id="demo-title">Three lines, three ways to crash</h2>
+      <p>This <code>getInitials</code> looks finished. The terminal output below comes from actual runs of railguard, trimmed only for length.</p>
+    </div>
+    <div class="console">
+      <div class="tabs" role="tablist" aria-label="Commands">
+        <button class="tab" role="tab" id="tab-probe" aria-controls="panel-probe" aria-selected="true" type="button"><span class="lamp"></span>probe</button>
+        <button class="tab" role="tab" id="tab-scan" aria-controls="panel-scan" aria-selected="false" tabindex="-1" type="button"><span class="lamp"></span>scan</button>
+        <button class="tab" role="tab" id="tab-check" aria-controls="panel-check" aria-selected="false" tabindex="-1" type="button"><span class="lamp"></span>check</button>
+        <button class="tab" role="tab" id="tab-errors" aria-controls="panel-errors" aria-selected="false" tabindex="-1" type="button"><span class="lamp"></span>errorHandler</button>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-probe" aria-labelledby="tab-probe" tabindex="0">
+<pre class="src">export function getInitials(fullName) {
+  return fullName.split(' ').map((part) => part[0].toUpperCase()).join('')
+}</pre>
+<pre><span class="t-cmd">$ npx railguard probe src/utils.js getInitials</span>
+railguard probe · getInitials(string)
+  <span class="t-dim">36 cases · 23 passed ·</span> 13 failed <span class="t-dim">(4 distinct problems) · 0 rejected on purpose</span>
+
+  <span class="t-x">✗</span> empty string, single space, whitespace only, leading/trailing spaces
+      crash: TypeError: Cannot read properties of undefined (reading 'toUpperCase')
+      <span class="t-y">fix:</span> add a null/undefined check or a default value
+
+  <span class="t-x">✗</span> undefined, null
+      crash: TypeError: Cannot read properties of undefined (reading 'split')
+      <span class="t-y">fix:</span> add a null/undefined check or a default value
+
+  <span class="t-x">✗</span> wrong types: number 42, boolean true, array, object, BigInt 10n, function
+      crash: TypeError: fullName.split is not a function
+      <span class="t-y">fix:</span> check the type before calling a method on it
+  <span class="t-dim">…</span>
+
+<span class="t-cmd">$ npx railguard probe src/utils.js getInitialsSafe</span>
+railguard probe · getInitialsSafe(string)
+  <span class="t-dim">36 cases · 36 passed · 0 failed · 0 rejected on purpose</span>
+
+  <span class="t-ok">✓</span> no crashes found</pre>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-scan" aria-labelledby="tab-scan" tabindex="0" hidden>
+<pre><span class="t-cmd">$ npx railguard scan</span>
+railguard scan <span class="t-dim">· 4 files checked</span>
+
+  <span class="t-x">✗</span> config.js:1:25  Database URL with a password
+      <span class="t-dim">mongodb+srv://demo:********@</span>
+
+<span class="t-x">1 problem.</span> Move secrets into .env (git-ignored) and read them with process.env.
+Anything that was ever pushed is public: rotate it, even after deleting it.
+<span class="t-dim">False positive? Add a "railguard-ignore" comment on that line.</span>
+
+<span class="t-cmd">$ npx railguard hook</span>
+<span class="t-ok">✓</span> pre-commit hook installed at .git/hooks/pre-commit
+  Every commit is now scanned for secrets and .env files.</pre>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-check" aria-labelledby="tab-check" tabindex="0" hidden>
+<pre><span class="t-cmd">$ npx railguard check</span>
+railguard check
+  railguard: 3 environment variables need attention
+
+  <span class="t-x">✗</span> PORT        must be an integer
+  <span class="t-x">✗</span> JWT_SECRET  is required, expected a string (at least 32 characters)
+  <span class="t-x">✗</span> CLIENT_URL  is required, expected a URL
+
+  Set them in .env for local work, or in your host’s environment settings in production.
+
+<span class="t-x">3 problems found.</span>
+<span class="t-dim"># Values are never printed, so a bad secret can't end up in your logs.</span></pre>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-errors" aria-labelledby="tab-errors" tabindex="0" hidden>
+<pre><span class="t-dim"># A real Express 5 app with app.use(errorHandler()), NODE_ENV=production</span>
+
+<span class="t-cmd">GET  /lessons/not-an-id</span>
+<span class="t-y">400</span> {"success":false,"error":{"code":"INVALID_ID","message":"Invalid _id"}}
+
+<span class="t-cmd">GET  /lessons/42</span>        <span class="t-dim">(route throws a raw Error)</span>
+<span class="t-y">500</span> {"success":false,"error":{"code":"INTERNAL_ERROR","message":"Something went wrong"}}
+
+<span class="t-cmd">GET  /me</span>                <span class="t-dim">(expired JWT)</span>
+<span class="t-y">401</span> {"success":false,"error":{"code":"TOKEN_EXPIRED","message":"Your session has expired. Please log in again."}}
+
+<span class="t-cmd">POST /users  {"name":"  Jo ","email":" Jo@Example.COM ","role":"admin"}</span>
+<span class="t-ok">201</span> {"success":true,"data":{"name":"Jo","email":"jo@example.com"}}
+<span class="t-dim">    ↑ "role" was dropped by validate(): no mass assignment</span>
+
+<span class="t-cmd">POST /users  {"name":</span>     <span class="t-dim">(broken JSON)</span>
+<span class="t-y">400</span> {"success":false,"error":{"code":"INVALID_JSON","message":"Request body is not valid JSON"}}</pre>
+      </div>
+    </div>
+    <p class="caption">All examples use throwaway demo values, not real credentials. In the errorHandler tab the response bodies are verbatim from a test app; the request paths are simplified.</p>
+  </section>
+
+  <section id="guards" aria-labelledby="guards-title">
+    <div class="section-head">
+      <p class="eyebrow">One install, three guards</p>
+      <h2 id="guards-title">What it checks</h2>
+    </div>
+
+    <article class="guard" aria-labelledby="g1">
+      <div class="copytext">
+        <h3 id="g1">Env and secrets</h3>
+        <p>Describe your environment once. railguard checks it at startup, turns strings into real numbers and booleans, and keeps your secrets out of git.</p>
+        <ul>
+          <li>A missing <code>MONGO_DB</code> or a <code>PORT</code> of <code>"five-thousand"</code> stops the app at boot, not on the first request.</li>
+          <li>A typo like <code>env.MONGO_URL</code> throws instead of quietly returning <code>undefined</code>.</li>
+          <li><code>console.log(env)</code> prints <code>[secret]</code> for passwords and tokens.</li>
+          <li>Database URLs with passwords, Gmail app passwords, AWS, GitHub, Stripe, OpenAI and Anthropic keys, JWTs and private keys are blocked at commit.</li>
+          <li>A <code>.env</code> that isn't git-ignored, or is still tracked after you ignored it, is flagged.</li>
+        </ul>
+      </div>
+      <div class="code"><pre><span class="c-com">// env.schema.js (npx railguard init writes it from your .env.example)</span>
+<span class="c-key">const</span> { t } = require(<span class="c-str">'railguard'</span>)
+
+module.exports = {
+  PORT: t.port().default(5000),
+  MONGO_DB: t.url(),
+  JWT_SECRET: t.string({ min: 32 }).secret(),
+  SENDER_EMAIL: t.email(),
+  NODE_ENV: t.enum([<span class="c-str">'development'</span>, <span class="c-str">'production'</span>]),
+}
+
+<span class="c-com">// server.js</span>
+<span class="c-key">const</span> env = guard(require(<span class="c-str">'./env.schema'</span>))
+app.listen(env.PORT)   <span class="c-com">// a number, not "5000"</span></pre></div>
+    </article>
+
+    <article class="guard" aria-labelledby="g2">
+      <div class="copytext">
+        <h3 id="g2">Express errors and validation</h3>
+        <p>Throw from any route and the client gets one predictable JSON shape. It already knows the errors a MERN app throws, with no extra dependencies.</p>
+        <div class="table-scroll">
+          <table class="map">
+            <thead><tr><th>Thrown</th><th>Sent</th></tr></thead>
+            <tbody>
+              <tr><td>Mongoose ValidationError</td><td>400 VALIDATION_ERROR</td></tr>
+              <tr><td>Bad ObjectId (CastError)</td><td>400 INVALID_ID</td></tr>
+              <tr><td>Duplicate key E11000</td><td>409 DUPLICATE</td></tr>
+              <tr><td>Expired or invalid JWT</td><td>401 TOKEN_EXPIRED</td></tr>
+              <tr><td>File too large (multer)</td><td>413</td></tr>
+              <tr><td>Anything else, in production</td><td>500, generic message</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="code"><pre><span class="c-key">const</span> { t, validate, errorHandler, notFound, ok, created, HttpError } = require(<span class="c-str">'railguard'</span>)
+
+app.post(<span class="c-str">'/api/users'</span>,
+  validate({ body: { name: t.string({ min: 1 }), email: t.email() } }),
+  <span class="c-key">async</span> (req, res) => created(res, <span class="c-key">await</span> User.create(req.body))
+)
+
+<span class="c-com">// Express 5 passes async errors on by itself. On Express 4, wrap with asyncHandler().</span>
+app.get(<span class="c-str">'/api/lessons/:id'</span>, <span class="c-key">async</span> (req, res) => {
+  <span class="c-key">const</span> lesson = <span class="c-key">await</span> Lesson.findById(req.params.id)
+  <span class="c-key">if</span> (!lesson) <span class="c-key">throw</span> HttpError.notFound(<span class="c-str">'Lesson not found'</span>)
+  ok(res, lesson)
+})
+
+app.use(notFound())
+app.use(errorHandler())</pre></div>
+    </article>
+
+    <article class="guard" aria-labelledby="g3">
+      <div class="copytext">
+        <h3 id="g3">Edge cases</h3>
+        <p>AI assistants and tired humans both write for the happy path. <code>probe</code> tries the inputs nobody tested, one argument at a time, and says how to fix each crash.</p>
+        <ul>
+          <li><code>TypeError: Cannot read properties of undefined</code> and the other accidental crashes.</li>
+          <li>Functions that return <code>NaN</code>, an Invalid Date, or text containing <code>undefined</code> or <code>[object Object]</code>.</li>
+          <li>Functions that change the array or object they were given.</li>
+          <li>Prototype pollution from <code>{"__proto__": …}</code> payloads.</li>
+          <li>Async functions that never settle.</li>
+        </ul>
+        <p>Errors you throw on purpose, like <code>throw new TypeError('email must be a string')</code>, don't count as crashes.</p>
+      </div>
+      <div class="code"><pre><span class="c-key">import</span> { test } <span class="c-key">from</span> <span class="c-str">'node:test'</span>
+<span class="c-key">import</span> { assertEdges, edge } <span class="c-key">from</span> <span class="c-str">'railguard/edge'</span>
+
+test(<span class="c-str">'getInitials survives edge cases'</span>, () =>
+  assertEdges(getInitials, { args: [<span class="c-str">'string'</span>] }))
+
+test(<span class="c-str">'formatPrice'</span>, () =>
+  assertEdges(formatPrice, {
+    args: [<span class="c-str">'number'</span>, edge.custom(<span class="c-str">'USD'</span>, [<span class="c-str">''</span>, <span class="c-str">'usd'</span>])],
+    allow: (err) => err <span class="c-key">instanceof</span> RangeError,  <span class="c-com">// thrown on purpose</span>
+    invariant: (out) => <span class="c-key">typeof</span> out === <span class="c-str">'string'</span>,
+  }))</pre></div>
+    </article>
+  </section>
+
+  <section id="ai" aria-labelledby="ai-title">
+    <div class="ai">
+      <div class="copytext">
+        <p class="eyebrow">For Claude, Copilot, Cursor and friends</p>
+        <h2 id="ai-title">Give your AI assistant the same rules</h2>
+        <p>AI tools write code fast and skip edge cases. Paste these rules into <code>CLAUDE.md</code>, <code>AGENTS.md</code>, <code>.cursorrules</code> or <code>.github/copilot-instructions.md</code>, and the assistant checks its own work before handing it to you.</p>
+        <p>The package also ships <code>llms.txt</code>, a complete API reference written for language models.</p>
+      </div>
+      <div class="rules">
+        <div class="rules-head">
+          <span>AGENTS.md</span>
+          <button class="copy" type="button" data-copy="ai-rules">Copy</button>
+        </div>
+<pre id="ai-rules">## Guardrails (railguard)
+- Read config only through the `env` object from `guard(require('./env.schema'))`. Never read `process.env` directly elsewhere, and never hard-code secrets.
+- When adding an environment variable, add it to `env.schema.js` and `.env.example`.
+- Express: validate input with `validate({ body, query, params })`, throw `HttpError.*` for expected failures, and let `errorHandler()` format errors. Don't write try/catch just to send a 500.
+- After writing or changing a utility function, run `npx railguard probe &lt;file&gt; &lt;exportName&gt;` and fix every ✗ before finishing.
+- Before committing, `npx railguard scan` must exit 0.</pre>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="limits-title">
+    <div class="section-head">
+      <p class="eyebrow">Know the limits</p>
+      <h2 id="limits-title">What it won't do</h2>
+    </div>
+    <div class="limits">
+      <div class="limit">
+        <h3>Find every edge case</h3>
+        <p>No tool can. It covers the inputs that most often crash JavaScript. For your business rules, add an <code>invariant</code>.</p>
+      </div>
+      <div class="limit">
+        <h3>Stop a sync infinite loop</h3>
+        <p>JavaScript can't interrupt one. Async hangs are caught with a timeout. <code>probe</code> runs the file you point it at, so use it on utilities, not your server entry.</p>
+      </div>
+      <div class="limit">
+        <h3>Replace bigger tools</h3>
+        <p>zod, gitleaks and fast-check go deeper. railguard is the small, zero-config first line, with output a beginner can act on.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="end">
+    <div class="rail" role="presentation"></div>
+    <div class="end-inner">
+      <div>
+        <p class="eyebrow">Free and open source</p>
+        <h2>npm install railguard</h2>
+      </div>
+      <div class="links">
+        <a class="btn primary" href="https://github.com/joshuablac/railguard">Read the docs on GitHub</a>
+        <a class="btn" href="https://www.npmjs.com/package/railguard">View on npm</a>
+      </div>
+    </div>
+    <p class="fine">MIT licensed. Built by Joshua (<a href="https://github.com/joshuablac">@joshuablac</a>).</p>
+  </footer>
+</div>
+
+<script>
+  // Tabs: click and arrow keys.
+  const tabs = [...document.querySelectorAll('[role="tab"]')]
+  function select(tab) {
+    for (const t of tabs) {
+      const on = t === tab
+      t.setAttribute('aria-selected', String(on))
+      t.tabIndex = on ? 0 : -1
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on
+    }
+    tab.focus()
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => select(t))
+    t.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); select(tabs[(i + 1) % tabs.length]) }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); select(tabs[(i - 1 + tabs.length) % tabs.length]) }
+    })
+  })
+
+  // Copy buttons, with a select-the-text fallback.
+  document.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const el = document.getElementById(btn.dataset.copy)
+      const text = el.textContent
+      const label = btn.textContent
+      try {
+        await navigator.clipboard.writeText(text)
+        btn.textContent = 'Copied'
+      } catch {
+        const range = document.createRange()
+        range.selectNodeContents(el)
+        const sel = window.getSelection()
+        sel.removeAllRanges()
+        sel.addRange(range)
+        btn.textContent = 'Selected'
+      }
+      setTimeout(() => (btn.textContent = label), 1600)
+    })
+  })
+</script>
+</body>
+</html>
