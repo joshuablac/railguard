@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0 (2026-09-29)
+
+- **ai**: new `npx railguard ai` command. It writes honest-reviewer rules into the files AI coding assistants read (AGENTS.md, CLAUDE.md, GEMINI.md, .cursorrules, .windsurfrules, .github/copilot-instructions.md). The assistant then warns when a secret is pasted into chat or about to be committed, checks edge cases before calling code done, follows safe API rules, and walks you through a pre-ship checklist. Re-running updates the block in place and never touches the rest of the file.
+- The same rules are published in `llms.txt` and exported as `AI_RULES` / `installAiRules()`.
+
 ## 0.1.0 (2026-09-29)
 
 First release.

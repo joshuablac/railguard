@@ -233,6 +233,7 @@
       <li><span>Secret detectors</span><span>12</span></li>
       <li><span>Works with</span><span>Express 4 &amp; 5</span></li>
       <li><span>Import style</span><span>ESM + require()</span></li>
+      <li><span>AI assistant rules</span><span>npx railguard ai</span></li>
       <li><span>Node.js</span><span>≥ 20.19</span></li>
       <li><span>License</span><span>MIT</span></li>
     </ul>
@@ -477,21 +478,33 @@ test(<span class="c-str">'formatPrice'</span>, () =>
     <div class="ai">
       <div class="copytext">
         <p class="eyebrow">For Claude, Copilot, Cursor and friends</p>
-        <h2 id="ai-title">Give your AI assistant the same rules</h2>
-        <p>AI tools write code fast and skip edge cases. Paste these rules into <code>CLAUDE.md</code>, <code>AGENTS.md</code>, <code>.cursorrules</code> or <code>.github/copilot-instructions.md</code>, and the assistant checks its own work before handing it to you.</p>
-        <p>The package also ships <code>llms.txt</code>, a complete API reference written for language models.</p>
+        <h2 id="ai-title">Make your AI assistant an honest reviewer</h2>
+        <p>AI tools write code fast, skip edge cases, and rarely warn you before you leak something. One command writes rules into the files your assistant reads: <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.cursorrules</code> or Copilot's instructions.</p>
+        <div class="install">
+          <code id="ai-cmd">npx railguard ai</code>
+          <button class="copy" type="button" data-copy="ai-cmd">Copy</button>
+        </div>
+        <p>From then on, your assistant tells you when a secret is exposed, checks edge cases before calling code done, and walks you through a checklist before you ship. The same rules open the package's <code>llms.txt</code>.</p>
       </div>
       <div class="rules">
         <div class="rules-head">
-          <span>AGENTS.md</span>
-          <button class="copy" type="button" data-copy="ai-rules">Copy</button>
+          <span>AGENTS.md · excerpt</span>
         </div>
-<pre id="ai-rules">## Guardrails (railguard)
-- Read config only through the `env` object from `guard(require('./env.schema'))`. Never read `process.env` directly elsewhere, and never hard-code secrets.
-- When adding an environment variable, add it to `env.schema.js` and `.env.example`.
-- Express: validate input with `validate({ body, query, params })`, throw `HttpError.*` for expected failures, and let `errorHandler()` format errors. Don't write try/catch just to send a 500.
-- After writing or changing a utility function, run `npx railguard probe &lt;file&gt; &lt;exportName&gt;` and fix every ✗ before finishing.
-- Before committing, `npx railguard scan` must exit 0.</pre>
+<pre>## Working rules for AI assistants (railguard)
+
+Act as the honest senior reviewer on this project. When something is unsafe, broken or unfinished, say so plainly in one sentence with the reason and the fix, even if the user didn't ask.
+
+### Secrets
+- If the user pastes a real secret into the chat, tell them right away that it is exposed and must be rotated. Don't repeat it back.
+- Never hard-code secrets. Never suggest posting .env contents, logs or screenshots that show secrets.
+- Before any commit or push, `npx railguard scan` must exit 0.
+
+### Edge cases
+- Before calling a function done, think through null/undefined, empty input, wrong types, NaN, Unicode, invalid dates and async failures. Run `npx railguard probe` and fix every ✗.
+
+### Before shipping, walk the user through
+1. Tests pass.  2. `railguard check`.  3. `railguard scan`.
+4. Secrets in the host's settings.  5. `npm audit`.</pre>
       </div>
     </div>
   </section>

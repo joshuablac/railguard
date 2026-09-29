@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { guard, envExample, readEnvFile, EnvError } from '../src/env.js'
 import { scanFiles, scanStaged, checkEnvFiles, installHook, isGitRepo } from '../src/secrets.js'
 import { probe, guessArgs, formatReport } from '../src/edge.js'
+import { installAiRules, AI_RULES, AI_FILES } from '../src/ai.js'
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 const useColor = process.env.FORCE_COLOR ? process.env.FORCE_COLOR !== '0' : process.stdout.isTTY && !process.env.NO_COLOR
@@ -25,10 +26,13 @@ ${bold('Usage')}
   railguard example [--schema env.schema.js]                 print a .env.example generated from your schema
   railguard probe   <file> [export] [--args string,number] [--strict] [--timeout ms] [--no-mutation]
                                                              throw edge cases at exported functions
+  railguard ai      [--file AGENTS.md] [--print]                teach your AI assistant to warn you about
+                                                             secrets, edge cases and unsafe code
 
 ${bold('Examples')}
   npx railguard init && npx railguard check
   npx railguard hook
+  npx railguard ai
   npx railguard probe src/utils/slugify.js
   npx railguard probe src/utils/price.js formatPrice --args number,string
 
@@ -37,7 +41,7 @@ Docs: ${pkg.homepage}`
 function parseArgs(argv) {
   const positional = []
   const flags = {}
-  const valued = new Set(['schema', 'env', 'args', 'timeout'])
+  const valued = new Set(['schema', 'env', 'args', 'timeout', 'file'])
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a.startsWith('--')) {
@@ -283,6 +287,23 @@ async function cmdProbe(positional, flags) {
   return failed || unprobed ? 1 : 0
 }
 
+function cmdAi(flags) {
+  if (flags.print) {
+    process.stdout.write(`${AI_RULES}\n`)
+    return 0
+  }
+  const files = typeof flags.file === 'string' ? [flags.file] : undefined
+  const results = installAiRules(process.cwd(), { files })
+  const verb = { created: 'created', added: 'added rules to', updated: 'updated rules in', unchanged: 'already up to date:' }
+  for (const r of results) console.log(`${green('✓')} ${verb[r.status]} ${r.file}`)
+  console.log(
+    dim(`\nYour AI assistant will now warn you about exposed secrets, missing edge cases and unsafe API code,\n` +
+      `and walk you through a checklist before you ship. Files checked: ${AI_FILES.join(', ')}.\n` +
+      `Commit the file so everyone on the project (and their assistants) gets the same rules.`)
+  )
+  return 0
+}
+
 async function main() {
   const { positional, flags } = parseArgs(process.argv.slice(2))
   const [command, ...rest] = positional
@@ -295,6 +316,7 @@ async function main() {
     case 'init': return cmdInit()
     case 'example': return cmdExample(flags)
     case 'probe': return cmdProbe(rest, flags)
+    case 'ai': return cmdAi(flags)
     default:
       console.error(red(`railguard: unknown command "${command}"\n`))
       console.log(HELP)

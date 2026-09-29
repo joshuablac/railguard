@@ -6,5 +6,6 @@ export { HttpError, asyncHandler, errorHandler, notFound, validate, ok, created,
 export type { Middleware, ErrorMiddleware, Next, HttpErrorOptions, ErrorHandlerOptions, NormalizedError, ValidateSchemas } from './express.js'
 export { probe, assertEdges, edge, formatReport, groupFailures, guessArgs, EdgeCaseError } from './edge.js'
 export type { ArgSpec, ArgType, ProbeOptions, ProbeReport, CaseResult, Problem, FailureKind } from './edge.js'
+export { AI_RULES, AI_RULES_BODY, AI_FILES, installAiRules } from './ai.js'
 export { scanText, scanFiles, scanStaged, checkEnvFiles, installHook, listFiles, mask, RULES } from './secrets.js'
 export type { Finding, Rule, EnvFileProblem } from './secrets.js'

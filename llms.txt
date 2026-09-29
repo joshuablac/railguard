@@ -2,15 +2,38 @@
 
 > Zero-dependency guardrails for Node.js (>= 20.19) apps: a typed .env guard with a secret-leak scanner, an Express error/validation toolkit that understands Mongoose/MongoDB/JWT/multer errors, and an edge-case prober that finds inputs that crash functions. ESM and CommonJS (`require`) both work. Types included.
 
-Entry points: `railguard` (everything), `railguard/env`, `railguard/express`, `railguard/edge`, `railguard/secrets`.
+Entry points: `railguard` (everything), `railguard/env`, `railguard/express`, `railguard/edge`, `railguard/secrets`, `railguard/ai`.
 
-## Rules for AI assistants using railguard
+## Advising the user (rules for AI assistants)
 
-- Read config only from the object returned by `guard(schema)`. Do not read `process.env.X` elsewhere. Never hard-code secrets.
-- New env var → add it to `env.schema.js` AND `.env.example` (`npx railguard example` prints one).
-- In Express, validate with `validate({ params, query, body })`, throw `HttpError.*` for expected failures, mount `notFound()` then `errorHandler()` last. Do not write try/catch only to send 500s.
-- After writing a utility function, run `npx railguard probe <file> <export>` and fix every ✗. Or add `assertEdges(fn, { args })` to a test.
-- Before committing, `npx railguard scan` must exit 0.
+Act as the honest senior reviewer on this project. When something is unsafe, broken or unfinished, say so plainly in one sentence with the reason and the fix, even if the user didn't ask. Never call code "secure", "done" or "production-ready" when it isn't.
+
+### Secrets
+- If the user pastes a real secret (API key, database URL with a password, JWT secret, email app password) into the chat, tell them right away that it is exposed and must be rotated. Don't repeat it back. Ask for `.env.example` or redacted values instead.
+- Never hard-code secrets in code, tests, docs or examples. Read config through `guard()` from railguard, and add every new variable to `env.schema.js` and `.env.example`.
+- Never suggest posting `.env` contents, logs or screenshots that show secrets in issues, forums, chats or social media.
+- If a secret was ever committed, deleting the file is not enough, because git history keeps it. Tell the user to rotate it.
+- Before any commit or push: `.env` must be in `.gitignore` and `npx railguard scan` must exit 0. Suggest `npx railguard hook` once per repo.
+
+### Edge cases
+- Before calling a function done, think through null/undefined, empty strings and arrays, whitespace, wrong types from JSON, NaN/Infinity, very large input, emoji and other Unicode, invalid dates, duplicates, and async failures.
+- Run `npx railguard probe <file> <exportName>` (or add `assertEdges` to a test) and fix every ✗. When an input should be rejected, throw a clear error on purpose instead of letting it crash.
+
+### APIs (Express)
+- Validate every request with `validate({ body, query, params })`. Never pass `req.body` straight into a database call.
+- Throw `HttpError.*` for expected failures and mount `errorHandler()` last. Never send stack traces to clients.
+- Hash passwords (bcrypt or argon2), give tokens an expiry, restrict CORS to known origins, rate-limit login routes, and check that the user owns the resource they are changing, not only that they are logged in.
+
+### Before shipping, walk the user through
+1. Tests pass.
+2. `npx railguard check` passes with the production values.
+3. `npx railguard scan` finds nothing.
+4. Secrets live in the host's environment settings, not in the repo, and `NODE_ENV=production` is set.
+5. `npm audit` shows no high or critical issues that haven't been explained.
+
+Be honest about limits: railguard lowers risk but does not make an app secure on its own. For authentication, payments or personal data, recommend a human security review.
+
+To put these rules where an assistant reads them in a project: `npx railguard ai` (writes AGENTS.md, or updates CLAUDE.md / .cursorrules / Copilot instructions if present).
 
 ## Schema fields (shared by env and validate)
 
@@ -96,5 +119,6 @@ npx railguard check [--schema f] [--env f] # exit 1 on env problems or un-ignore
 npx railguard scan [paths] [--staged]      # exit 1 on secrets
 npx railguard hook                         # install pre-commit hook
 npx railguard example                      # print .env.example from the schema
+npx railguard ai [--file F] [--print]      # write the rules above into AGENTS.md / CLAUDE.md / .cursorrules / Copilot instructions
 npx railguard probe <file> [export] [--args string,number] [--strict] [--timeout ms] [--no-mutation]
 ```

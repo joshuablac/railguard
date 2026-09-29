@@ -1,6 +1,6 @@
 {
   "name": "railguard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Guardrails for Node.js apps, whether a person or an AI wrote the code: a typed .env guard with a secret-leak scanner, a MERN-aware Express error toolkit, and an edge-case prober that finds the inputs that crash your functions. Zero dependencies.",
   "type": "module",
   "exports": {
@@ -23,6 +23,10 @@
     "./secrets": {
       "types": "./types/secrets.d.ts",
       "default": "./src/secrets.js"
+    },
+    "./ai": {
+      "types": "./types/ai.d.ts",
+      "default": "./src/ai.js"
     },
     "./package.json": "./package.json"
   },
@@ -67,7 +71,12 @@
     "testing",
     "ai",
     "llm",
-    "zero-dependency"
+    "zero-dependency",
+    "ai-assistant",
+    "agents-md",
+    "claude",
+    "cursor",
+    "copilot"
   ],
   "author": "Joshua (https://github.com/joshuablac)",
   "license": "MIT",

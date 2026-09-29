@@ -20,6 +20,7 @@ npm install railguard
 npx railguard init                  # env.schema.js from your .env.example
 npx railguard check                 # typed env check + .env git hygiene
 npx railguard hook                  # block commits that contain secrets
+npx railguard ai                    # make your AI assistant warn you about leaks and edge cases
 npx railguard probe src/utils.js    # throw edge cases at every exported function
 ```
 
@@ -250,23 +251,25 @@ Errors your function throws **on purpose** (`throw new TypeError('email must be 
 
 ---
 
-## Using railguard with AI coding assistants
+## Make your AI assistant an honest reviewer
 
-AI tools write code fast and skip edge cases. railguard gives them, and you, a quick way to check the result. Paste this into `CLAUDE.md`, `AGENTS.md`, `.cursorrules` or `.github/copilot-instructions.md`:
+AI tools write code fast, skip edge cases, and rarely warn you when you're about to leak something. One command fixes that:
 
-```md
-## Guardrails (railguard)
-- Read config only through the `env` object from `guard(require('./env.schema'))`. Never read
-  `process.env` directly elsewhere, and never hard-code secrets.
-- When adding an environment variable, add it to `env.schema.js` and `.env.example`.
-- Express: validate input with `validate({ body, query, params })`, throw `HttpError.*` for expected
-  failures, and let `errorHandler()` format errors. Don't write try/catch just to send a 500.
-- After writing or changing a utility function, run `npx railguard probe <file> <exportName>` and fix
-  every ✗ before finishing.
-- Before committing, `npx railguard scan` must exit 0.
+```bash
+npx railguard ai
 ```
 
-The package also ships [`llms.txt`](./llms.txt): a compact, complete API reference written for language models.
+It writes a short set of rules into the files AI coding assistants read: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules` and `.github/copilot-instructions.md`. It updates the ones you have, or creates `AGENTS.md` if you have none. With those rules, your assistant will:
+
+- **Tell you the truth.** It says plainly when code is unsafe, broken or unfinished, and never calls it "production-ready" when it isn't.
+- **Stop secret leaks.** If you paste a real API key or database password into the chat, it tells you it's exposed and must be rotated, and it never hard-codes secrets or suggests posting `.env` contents anywhere.
+- **Check edge cases** (null, empty input, wrong types, NaN, Unicode, invalid dates, async failures) and run `railguard probe` before calling a function done.
+- **Build APIs safely:** validated input, hashed passwords, token expiry, CORS limits, rate-limited logins and ownership checks.
+- **Walk you through a checklist before you ship:** tests, `railguard check`, `railguard scan`, secrets in the host settings, `npm audit`.
+
+The rules sit between `<!-- railguard:start -->` and `<!-- railguard:end -->` markers. Running the command again updates that block and never touches the rest of the file. Use `--file <path>` to target one file, or `--print` to see the rules first. Commit the file so everyone on the project, and their assistants, follows the same rules.
+
+The same rules open [`llms.txt`](./llms.txt), a compact, complete API reference written for language models.
 
 ---
 

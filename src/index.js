@@ -12,4 +12,5 @@ export {
   normalizeError,
 } from './express.js'
 export { probe, assertEdges, edge, formatReport, groupFailures, guessArgs, EdgeCaseError } from './edge.js'
+export { AI_RULES, AI_RULES_BODY, AI_FILES, installAiRules } from './ai.js'
 export { scanText, scanFiles, scanStaged, checkEnvFiles, installHook, listFiles, mask, RULES } from './secrets.js'

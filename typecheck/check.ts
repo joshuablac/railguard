@@ -72,3 +72,10 @@ const findings = scanText('x', { file: 'a.js' })
 const line: number = findings[0]?.line ?? 0
 
 export { port, mode, dsn, origins, debug, dsnStrict, wrong, u, bad, handler, eh, edges, line }
+
+import { installAiRules, AI_RULES } from 'railguard'
+import { AI_FILES } from 'railguard/ai'
+const aiResults = installAiRules('.', { files: ['AGENTS.md'] })
+const aiStatus: 'created' | 'added' | 'updated' | 'unchanged' = aiResults[0].status
+const aiText: string = AI_RULES + AI_FILES.join()
+export { aiStatus, aiText }
