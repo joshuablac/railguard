@@ -269,7 +269,16 @@ export function checkEnvFiles(cwd = process.cwd()) {
     } catch {}
   }
   for (const f of tracked) {
-    problems.push({ level: 'error', file: f, message: `${f} is tracked by git. Run: git rm --cached ${f}  (and rotate every secret it held)` })
+    // Untracking alone isn't enough when the file isn't ignored: the next "git add ." re-commits it.
+    let ignored = false
+    try {
+      git(cwd, ['check-ignore', '-q', '--no-index', f])
+      ignored = true
+    } catch {}
+    const message = ignored
+      ? `${f} is tracked by git. Run: git rm --cached ${f}  (and rotate every secret it held)`
+      : `${f} is tracked by git and not in .gitignore. Run: git rm --cached ${f}, then add ${f} to .gitignore  (and rotate every secret it held)`
+    problems.push({ level: 'error', file: f, message })
   }
   for (const f of entries) {
     if (tracked.has(f)) continue

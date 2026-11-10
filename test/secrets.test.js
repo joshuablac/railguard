@@ -134,6 +134,18 @@ test('checkEnvFiles: tracked and un-ignored .env files', () => {
   assert.match(problems[0].message, /\.env is tracked by git\. Run: git rm --cached \.env/)
 })
 
+test('checkEnvFiles: tracked .env that is also not ignored gets both fixes', () => {
+  // Untracking alone is not enough: the next "git add ." would commit it again.
+  const dir = tempRepo()
+  writeFileSync(join(dir, '.env'), 'A=1\n')
+  git(dir, 'add', '.env')
+  const problems = checkEnvFiles(dir)
+  assert.equal(problems.length, 1)
+  assert.match(problems[0].message, /\.env is tracked by git and not in \.gitignore/)
+  assert.match(problems[0].message, /git rm --cached \.env/)
+  assert.match(problems[0].message, /add \.env to \.gitignore/)
+})
+
 test('installHook: installs once, never overwrites, respects core.hooksPath', () => {
   const dir = tempRepo()
   const first = installHook(dir)
