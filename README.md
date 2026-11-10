@@ -2,7 +2,7 @@
 
 **Guardrails for Node.js apps, whether a person or an AI wrote the code.**
 
-[Website](https://joshuablac.github.io/railguard/) · [npm](https://www.npmjs.com/package/railguard) · [Changelog](./CHANGELOG.md) · [For AI assistants: llms.txt](./llms.txt)
+[Website](https://joshuablac.github.io/railguard/) · [npm](https://www.npmjs.com/package/railguard) · [Agent skill on Agensi](https://www.agensi.io/skills/railguard-honest-reviewer-for-node-js-express) · [Changelog](./CHANGELOG.md) · [For AI assistants: llms.txt](./llms.txt)
 
 One install, three guards, zero dependencies:
 
@@ -268,6 +268,8 @@ It writes a short set of rules into the files AI coding assistants read: `AGENTS
 - **Walk you through a checklist before you ship:** tests, `railguard check`, `railguard scan`, secrets in the host settings, `npm audit`.
 
 The rules sit between `<!-- railguard:start -->` and `<!-- railguard:end -->` markers. Running the command again updates that block and never touches the rest of the file. Use `--file <path>` to target one file, or `--print` to see the rules first. Commit the file so everyone on the project, and their assistants, follows the same rules.
+
+Prefer a skill? The same rules ship as an agent skill for Claude Code, Cursor, Codex and other agents: copy [`skills/railguard/`](./skills/railguard/SKILL.md) into your agent's skills folder, or install it free from [Agensi](https://www.agensi.io/skills/railguard-honest-reviewer-for-node-js-express).
 
 The same rules open [`llms.txt`](./llms.txt), a compact, complete API reference written for language models.
 
